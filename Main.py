@@ -18,20 +18,10 @@ def main(path=DefaultPath):
 
         parsed = json.loads(string)
         apps = parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
-        apps = {appID: apps[appID] for appID in apps if 'tags' in apps[appID]} # remove all the games without categories
+        apps = {appID: apps[appID] for appID in apps if ("tags" in apps[appID]) and isinstance(apps[appID]["tags"], dict)} # remove all the games without categories
 
-        #'''
-        for (appID, app) in apps.items():
-            #print(str(app))
-            #print(type(app))
-            for (index, tags) in app["tags"].items():
-                print(tags)
-        #'''
-
-
-        #tagsNested = [tagList for (appID, app) in apps.items() for tagList in app["tags"].items()]
-        #tags = [tag for appID in apps for tag in apps[appID]["tags"]]
-        #print(tagsNested)
+        tags = set([tagList for (appID, app) in apps.items() for (_, tagList) in app["tags"].items()])
+        print(tags)
 
 
 
