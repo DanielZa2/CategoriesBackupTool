@@ -1,49 +1,85 @@
 import json
 import re
 
-DefaultPath = "Test\\sharedconfig.vdf.txt" # TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
-WRITE_JSON_FILE = False;
+DefaultPath = "Test\\sharedconfig.vdf.txt"  # TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
+WRITE_JSON_FILE = False
 
 
+class Tag:
+    def __init__(self, name):
+        self.name = name
+        self.games = []
 
+    def add_game(self, game):
+        self.games.append(game)
+
+    def __repr__(self):
+        return "<Tag: " + self.name + ">"
+
+    def str_games(self):
+        ret = repr(self)
+        for game in self.games:
+            ret += "\n\t"
+            ret += repr(game)
+        return ret
+
+
+class Game:
+    def __init__(self, index):
+        self.id = index
+        self.name = ""
+
+    def __repr__(self):
+        if self.name is "":
+            return "<Game: " + self.id + ">"
+        else:
+            return "<Game: " + self.name + ">"
 
 
 def main(path=DefaultPath):
+    apps = apps_from_file(path)
+    apps = {appID: apps[appID] for appID in apps if ("tags" in apps[appID]) and isinstance(apps[appID]["tags"], dict)}  # remove all the games without categories
+    tags = tag_obj_from_str(apps)
+
+    for tag in tags:
+        print(tag.str_games())
+
+
+def tag_obj_from_str(apps):
+    tag_names = sorted(set([tag_name for app in apps.values() for tag_name in app["tags"].values()]))  # get all the possible tags from the different apps
+    tags = [Tag(tag_name) for tag_name in tag_names]
+    games = [Game(game_id) for game_id in apps]
+    for tag in tags:
+        for game in games:
+            if tag.name in apps[game.id]["tags"].values():
+                tag.add_game(game)
+    return tags
+
+
+def apps_from_file(path):
     with open(path) as file:
-        string = file.read()
-        string = valve2json(string)
-        if (WRITE_JSON_FILE):
+        file_string = file.read()
+        file_string = json_from_valve(file_string)
+        if WRITE_JSON_FILE:
             out = open(path + ".json", 'w')
-            out.write(string)
+            out.write(file_string)
 
-        parsed = json.loads(string)
-        apps = parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
-        apps = {appID: apps[appID] for appID in apps if ("tags" in apps[appID]) and isinstance(apps[appID]["tags"], dict)} # remove all the games without categories
-
-        tags = set([tagList for (appID, app) in apps.items() for (_, tagList) in app["tags"].items()])
-        print(tags)
+        parsed = json.loads(file_string)
+        return parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
 
 
-
-
-def valve2json(string):
-    string = "{\n" + string + "}"
+def json_from_valve(file_string):
+    file_string = "{\n" + file_string + "}"
     # "txt" -> "txt":
-    string = re.sub(r"(\n[^\n\"]*\"[^\n\"]*\")\n", r"\1:\n", string)
+    file_string = re.sub(r"(\n[^\n\"]*\"[^\n\"]*\")\n", r"\1:\n", file_string)
     # "txt" "bob" -> "txt": "bob",
-    string = re.sub(r"([^\"\n]*\"[^\"\n]*\")([^\"\n]*)([^\"\n]*\"[^\"\n]*\")", r"\1:\2\3,", string)
+    file_string = re.sub(r"([^\"\n]*\"[^\"\n]*\")([^\"\n]*)([^\"\n]*\"[^\"\n]*\")", r"\1:\2\3,", file_string)
     # "}" -> "},"
-    string = string.replace("}","},")
+    file_string = file_string.replace("}", "},")
     # "},}" -> "}}"
-    string = re.sub(r",([\t|\n]*)\}", r"\1}", string)[0:-1]
+    file_string = re.sub(r",([\t|\n]*)\}", r"\1}", file_string)[0:-1]
 
-    return string
-
-
+    return file_string
 
 
 main()
-
-
-
-
