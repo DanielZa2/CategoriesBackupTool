@@ -89,3 +89,4 @@ ENV/
 .ropeproject
 ScratchPad.py
 .idea/workspace.xml
+Test/fetch_error.txt
