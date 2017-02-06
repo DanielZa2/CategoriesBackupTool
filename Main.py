@@ -1,17 +1,18 @@
 import json
 import re
-import sys
+import os
 import html
 
 from urllib import request as urlrequest
 
-DefaultPath = "Test\\sharedconfig.vdf.txt"  # TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
+# TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
+# TODO detect path for sharedconfig.vdf
+
+
+DefaultPath = "Test\\sharedconfig.vdf.txt"
+
 WRITE_JSON_FILE = False
 WRITE_FAILED_NAME_FETCH_TO_FILE = False
-
-
-
-
 
 
 class Tag:
@@ -70,7 +71,7 @@ def apps_from_file(path):
         file_string = file.read()
         file_string = json_from_valve(file_string)
         if WRITE_JSON_FILE:
-            with open(path + ".json", 'w') as out:
+            with open(path + ".json", "w") as out:
                 out.write(file_string)
 
         parsed = json.loads(file_string)
@@ -112,9 +113,16 @@ def fetch_game_data(app_id):
 
 
 
+def log(msg, prefix="Error- ", filename=None):
+    if not os.path.exists("Log"):
+        os.mkdir("Log")
+
+    if filename is None:
+        import datetime
+        filename = prefix + str(datetime.datetime.now().isoformat())
+
+    with open("Log/"+filename, "w") as file:
+        file.write(msg)
 
 
-
-
-# main()
-print(fetch_game_data("337000")["name"])
+main()

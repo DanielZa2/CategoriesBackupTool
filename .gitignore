@@ -87,7 +87,12 @@ ENV/
 
 # Rope project settings
 .ropeproject
-ScratchPad.py
+
+# PyCharm Stuff
 .idea/workspace.xml
+
+
+# My Stuff
+ScratchPad.py
 Test/fetch_error.txt
 Log/
