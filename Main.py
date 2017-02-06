@@ -37,13 +37,13 @@ class Tag:
 class Game:
     def __init__(self, index):
         self.id = index
-        self.name = ""
+        self.data = None
 
     def __repr__(self):
-        if self.name is "":
+        if self.data is None:
             return "<Game: " + self.id + ">"
         else:
-            return "<Game: " + self.name + ">"
+            return "<Game: " + self.data["name"] + ">"
 
 
 def main(path=DefaultPath):
@@ -94,23 +94,12 @@ def json_from_valve(file_string):
 
 def fetch_game_data(app_id):
     req = urlrequest.Request("http://store.steampowered.com/api/appdetails/?appids=" + app_id)
-    try:
-        json_bytes = urlrequest.urlopen(req).read()
-        json_text = html.unescape(json_bytes.decode("utf-8"))
-        game_info = json.loads(json_text)
-        name = game_info[app_id]["data"]
+    json_bytes = urlrequest.urlopen(req).read()
+    json_text = html.unescape(json_bytes.decode("utf-8"))
+    game_info = json.loads(json_text)
+    name = game_info[app_id]["data"]
 
-        return name
-
-
-    except Exception as e:
-        if WRITE_FAILED_NAME_FETCH_TO_FILE:
-            print(str(e), file=sys.stderr)
-            with open("Log/fetch_error.html.txt", 'w') as out:
-                out.write(str(e) + "\n\n\n")
-                out.write(game_info)
-        return None  # //Can't fetch the name
-
+    return name
 
 
 def log(msg, prefix="Error- ", filename=None):
