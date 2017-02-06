@@ -1,14 +1,17 @@
 import json
 import re
-import urllib.parse
-import urllib.request
+import sys
+import html
 
-# from urllib.parse import urlencode
-# from urllib.request import Request, urlopen
+from urllib import request as urlrequest
 
 DefaultPath = "Test\\sharedconfig.vdf.txt"  # TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
 WRITE_JSON_FILE = False
-WRITE_FAILED_NAME_FETCH_HTTP = False
+WRITE_FAILED_NAME_FETCH_TO_FILE = False
+
+
+
+
 
 
 class Tag:
@@ -87,14 +90,14 @@ def json_from_valve(file_string):
 
     return file_string
 
-
-def fetch_name(app_id):
-    html_string = str(urllib.request.urlopen("http://store.steampowered.com/app/" + app_id).read())
+''' Don't use this. Works Poorly'''
+def fetch_name_from_steamstore(app_id):
+    html_string = str(urlrequest.urlopen("http://store.steampowered.com/app/" + app_id).read())
 
     name_start = html_string.find("<div class=\"apphub_AppName\">")
 
     if name_start == -1 and html_string.find("agecheck"):
-        #Does not work
+        # Does not work
         '''
         params = {
             "ageDay": "1",
@@ -124,7 +127,7 @@ def fetch_name(app_id):
         '''
 
     if name_start == -1:
-        if WRITE_FAILED_NAME_FETCH_HTTP:
+        if WRITE_FAILED_NAME_FETCH_TO_FILE:
             with open("Log/fetch_error.html.txt", 'w') as out:
                 out.write(html_string.replace("\\r", "\r").replace("\\t", "\t").replace("\\n", "\n"))
         return None  # //Can't fetch the name
@@ -135,5 +138,51 @@ def fetch_name(app_id):
     return name
 
 
+def fetch_game_data(app_id):
+    req = urlrequest.Request("http://store.steampowered.com/api/appdetails/?appids=" + app_id)
+    try:
+        json_bytes = urlrequest.urlopen(req).read()
+        json_text = html.unescape(json_bytes.decode("utf-8"))
+        game_info = json.loads(json_text)
+        name = game_info[app_id]["data"]
+
+        return name
+
+
+    except Exception as e:
+        if WRITE_FAILED_NAME_FETCH_TO_FILE:
+            print(str(e), file=sys.stderr)
+            with open("Log/fetch_error.html.txt", 'w') as out:
+                out.write(str(e) + "\n\n\n")
+                out.write(game_info)
+        return None  # //Can't fetch the name
+
+
+
+
+''' Don't use this. SteamDB asked not to. https://steamdb.info/faq/#can-i-use-auto-refreshing-plugins-or-automatically-scrape-crawl-steamdb'''
+def fetch_name_from_steamdb(app_id):
+
+    prefix = "<td itemprop=\"name\">"
+    sufix = "</td>"
+
+    req = urlrequest.Request("http://steamdb.info/app/" + app_id, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'})
+
+    html_string = str(urlrequest.urlopen(req).read())
+
+    name_start = html_string.find(prefix)
+
+    if name_start == -1:
+        if WRITE_FAILED_NAME_FETCH_TO_FILE:
+            with open("Log/fetch_error.html.txt", 'w') as out:
+                out.write(html_string.replace("\\r", "\r").replace("\\t", "\t").replace("\\n", "\n"))
+        return None  # //Can't fetch the name
+
+    name_end = html_string.find(sufix, name_start + len(prefix))
+    name = html_string[name_start + len(prefix): name_end]
+
+    return html.unescape(name)
+
+
 # main()
-print(fetch_name("448510"))
+print(fetch_game_data("337000")["name"])
