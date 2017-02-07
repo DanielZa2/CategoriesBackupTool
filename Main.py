@@ -4,15 +4,20 @@ import os
 import html
 
 from urllib import request as urlrequest
+from urllib import error as urlerror
 
 # TODO Change default path to the eqvivalent of C:\Program Files (x86)\Steam\userdata\<ID>\7\remote
 # TODO detect path for sharedconfig.vdf
+# TODO GUI. 3 Buttons. Import sharedconfig.vdf, Export sharedconfig.vdf, Export readable format.
+# TODO remove stupid characters from names. Characters like trademark and copyright and etc
+# TODO change to using http://api.steampowered.com/ISteamApps/GetAppList/v0001/
+# TDOD Readme.md
 
 
 DefaultPath = "Test\\sharedconfig.vdf.txt"
 
 WRITE_JSON_FILE = False
-WRITE_FAILED_NAME_FETCH_TO_FILE = False
+WRITE_FAILED_NAME_FETCH_TO_FILE = True
 
 
 class Tag:
@@ -45,14 +50,60 @@ class Game:
         else:
             return "<Game: " + self.data["name"] + ">"
 
+    @staticmethod
+    def fetch_game_data_static(app_id):
+        req = urlrequest.Request("http://store.steampowered.com/api/appdetails/?appids=" + app_id)
 
-def main(path=DefaultPath):
+        try:
+            json_bytes = urlrequest.urlopen(req).read()
+        except urlerror.HTTPError as e:
+            if WRITE_FAILED_NAME_FETCH_TO_FILE:
+                log(str(e) + "\n\n\n" + str(req.full_url), "HTTPError_")
+            return None
+
+        json_text = json_bytes.decode("utf-8")
+        try:
+            game_info = json.loads(json_text)
+
+            if not game_info[app_id]["success"]:
+                return None
+
+            data = game_info[app_id]["data"]
+            return data
+            # unescaped_data = {}
+            # for k, v in data.items(): # TODO fix this. unescape HTML
+            #    unescaped_data[k] = html.unescape(v) if v is isinstance(v, str) else v
+            # return unescaped_data
+
+
+        except (json.decoder.JSONDecodeError, KeyError) as e:
+            if WRITE_FAILED_NAME_FETCH_TO_FILE:
+                log(str(e) + "\n\n\n" + json_text, "ParseError_")
+            return None
+
+    def fetch_game_data(self):
+        if self.data is None and self.id.isdigit():
+            self.data = self.fetch_game_data_static(self.id)
+            print((str(self.id) + ": " + self.data["name"]) if self.data is not None else (str(self.id) + ": ???"))
+
+
+def test():
+    tags = tag_obj_from_path(DefaultPath)
+    games = [game for tag in tags for game in tag.games]
+
+    for game in games:
+        game.fetch_game_data()
+
+    for tag in tags:
+        print(tag.str_games())
+
+
+def tag_obj_from_path(path):
     apps = apps_from_file(path)
     apps = {appID: apps[appID] for appID in apps if ("tags" in apps[appID]) and isinstance(apps[appID]["tags"], dict)}  # remove all the games without categories
     tags = tag_obj_from_str(apps)
 
-    for tag in tags:
-        print(tag.str_games())
+    return tags
 
 
 def tag_obj_from_str(apps):
@@ -92,26 +143,16 @@ def json_from_valve(file_string):
     return file_string
 
 
-def fetch_game_data(app_id):
-    req = urlrequest.Request("http://store.steampowered.com/api/appdetails/?appids=" + app_id)
-    json_bytes = urlrequest.urlopen(req).read()
-    json_text = html.unescape(json_bytes.decode("utf-8"))
-    game_info = json.loads(json_text)
-    name = game_info[app_id]["data"]
-
-    return name
-
-
-def log(msg, prefix="Error- ", filename=None):
+def log(msg, prefix="Error_", filename=None):
     if not os.path.exists("Log"):
         os.mkdir("Log")
 
     if filename is None:
         import datetime
-        filename = prefix + str(datetime.datetime.now().isoformat())
+        filename = prefix + str(datetime.datetime.now().strftime("%Y-%m-%d;%H-%M-%S;%f")) + ".txt"
 
-    with open("Log/"+filename, "w") as file:
+    with open("Log/" + filename, "w") as file:
         file.write(msg)
 
 
-main()
+test()
