@@ -10,14 +10,13 @@ from urllib import error as urlerror
 # TODO detect path for sharedconfig.vdf
 # TODO GUI. 3 Buttons. Import sharedconfig.vdf, Export sharedconfig.vdf, Export readable format.
 # TODO remove stupid characters from names. Characters like trademark and copyright and etc
-# TODO change to using http://api.steampowered.com/ISteamApps/GetAppList/v0001/
-# TDOD Readme.md
+# TODO Readme.md
 
 
 DefaultPath = "Test\\sharedconfig.vdf.txt"
 
-WRITE_JSON_FILE = False
-WRITE_FAILED_NAME_FETCH_TO_FILE = True
+OUTPUT__SHAREDCONFIG_VDF_JSON = False
+LOG_ERROR___FETCH_APPLIST = True
 
 
 class Tag:
@@ -31,71 +30,108 @@ class Tag:
     def __repr__(self):
         return "<Tag: " + self.name + ">"
 
+    def __str__(self):
+        return "Tag: " + self.name
+
     def str_games(self):
-        ret = repr(self)
+        ret = str(self)
         for game in self.games:
             ret += "\n\t"
-            ret += repr(game)
+            ret += str(game)
         return ret
 
 
 class Game:
     def __init__(self, index):
         self.id = index
-        self.data = None
+        self.name = None
+
+    def __str__(self):
+        if self.name is None:
+            return "(AppID: " + self.id + ")"
+        else:
+            return self.name
 
     def __repr__(self):
-        if self.data is None:
-            return "<Game: " + self.id + ">"
+        if self.name is None:
+            return "<AppID: " + self.id + ">"
         else:
-            return "<Game: " + self.data["name"] + ">"
+            return "<Game: " + self.name + ">"
+
+    def fetch_game_data(self, applist):
+
+        if self.id.isdigit():
+            self.name = applist.id_lookup.get(int(self.id), None)
+
+
+class AppList:
+    def __init__(self, filename="Applist.txt", on_demend_refetch=True, remove_trademark_symbols=True):
+        self.filename = filename
+        self.remove_trademark_symbols = remove_trademark_symbols
+        self.data = None
+        self.id_lookup = None
+        # self.name_lookup = None
+        self.on_demend_refetch = on_demend_refetch
 
     @staticmethod
-    def fetch_game_data_static(app_id):
-        req = urlrequest.Request("http://store.steampowered.com/api/appdetails/?appids=" + app_id)
+    def filter_trademark(string):
+        return string != "©" and string != "™"
 
+    @staticmethod
+    def fetch_data_from_net():
+        req = urlrequest.Request("http://api.steampowered.com/ISteamApps/GetAppList/v0001/")
         try:
             json_bytes = urlrequest.urlopen(req).read()
         except urlerror.HTTPError as e:
-            if WRITE_FAILED_NAME_FETCH_TO_FILE:
+            if LOG_ERROR___FETCH_APPLIST:
                 log(str(e) + "\n\n\n" + str(req.full_url), "HTTPError_")
             return None
 
-        json_text = json_bytes.decode("utf-8")
+        return json_bytes.decode("utf-8")
+
+    def fetch_data_from_disk(self):
+        with open(self.filename, encoding='UTF-8') as file:
+            return file.read()
+
+    @staticmethod
+    def json_to_obj(json_text):
         try:
             game_info = json.loads(json_text)
 
-            if not game_info[app_id]["success"]:
-                return None
-
-            data = game_info[app_id]["data"]
+            data = game_info["applist"]["apps"]["app"]
             return data
-            # unescaped_data = {}
-            # for k, v in data.items(): # TODO fix this. unescape HTML
-            #    unescaped_data[k] = html.unescape(v) if v is isinstance(v, str) else v
-            # return unescaped_data
 
 
         except (json.decoder.JSONDecodeError, KeyError) as e:
-            if WRITE_FAILED_NAME_FETCH_TO_FILE:
+            if LOG_ERROR___FETCH_APPLIST:
                 log(str(e) + "\n\n\n" + json_text, "ParseError_")
             return None
 
-    def fetch_game_data(self):
-        if self.data is None and self.id.isdigit():
-            self.data = self.fetch_game_data_static(self.id)
-            print((str(self.id) + ": " + self.data["name"]) if self.data is not None else (str(self.id) + ": ???"))
+    def write_data_to_disk(self, data):
+        with open(self.filename, "w", encoding='UTF-8') as file:
+            file.write(data)
+
+    def get_applist(self):
+        if self.data is not None:
+            return self
+
+        if not self.on_demend_refetch and os.path.exists(self.filename):
+            self.data = AppList.json_to_obj(self.fetch_data_from_disk())
+        else:
+            json_text = AppList.fetch_data_from_net()
+            self.data = AppList.json_to_obj(json_text)
+            self.write_data_to_disk(json_text)
+
+        if self.remove_trademark_symbols:
+            self.id_lookup = {pair["appid"]: "".join(filter(AppList.filter_trademark, pair["name"])) for pair in self.data}
+        else:
+            self.id_lookup = {pair["appid"]: pair["name"] for pair in self.data}
+            # self.name_lookup = {pair["name"]: pair["appid"] for pair in self.data}
+
+        return self
 
 
-def test():
-    tags = tag_obj_from_path(DefaultPath)
-    games = [game for tag in tags for game in tag.games]
 
-    for game in games:
-        game.fetch_game_data()
-
-    for tag in tags:
-        print(tag.str_games())
 
 
 def tag_obj_from_path(path):
@@ -118,11 +154,11 @@ def tag_obj_from_str(apps):
 
 
 def apps_from_file(path):
-    with open(path) as file:
+    with open(path, encoding='UTF-8') as file:
         file_string = file.read()
         file_string = json_from_valve(file_string)
-        if WRITE_JSON_FILE:
-            with open(path + ".json", "w") as out:
+        if OUTPUT__SHAREDCONFIG_VDF_JSON:
+            with open(path + ".json", "w", encoding='UTF-8') as out:
                 out.write(file_string)
 
         parsed = json.loads(file_string)
@@ -151,8 +187,21 @@ def log(msg, prefix="Error_", filename=None):
         import datetime
         filename = prefix + str(datetime.datetime.now().strftime("%Y-%m-%d;%H-%M-%S;%f")) + ".txt"
 
-    with open("Log/" + filename, "w") as file:
+    with open("Log/" + filename, "w", encoding='UTF-8') as file:
         file.write(msg)
 
 
-test()
+
+def main(): # on_demend_refetch=False
+    applist = AppList().get_applist()
+    tags = tag_obj_from_path(DefaultPath)
+    games = [game for tag in tags for game in tag.games]
+
+    for game in games:
+        game.fetch_game_data(applist)
+
+    for tag in tags:
+        print(tag.str_games())
+
+
+main()
