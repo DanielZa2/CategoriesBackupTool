@@ -128431,6 +128431,10 @@
 					"name": "Manor of the Damned!"
 				},
 				{
+					"appid": 532690,
+					"name": "Neo ATLAS 1469"
+				},
+				{
 					"appid": 532700,
 					"name": "Finque"
 				},
@@ -138327,6 +138331,10 @@
 					"name": "BasementVR"
 				},
 				{
+					"appid": 561450,
+					"name": "Mutant Fighting Cup 2"
+				},
+				{
 					"appid": 561470,
 					"name": "Wargame Red Dragon - Double Nation Pack: REDS"
 				},
@@ -144163,6 +144171,10 @@
 					"name": "Totemori"
 				},
 				{
+					"appid": 588210,
+					"name": "HELLION"
+				},
+				{
 					"appid": 588240,
 					"name": "Frisky Business"
 				},
@@ -144273,6 +144285,10 @@
 				{
 					"appid": 590590,
 					"name": "Remnants of Naezith"
+				},
+				{
+					"appid": 590820,
+					"name": "Pixel Mystery Dungeon"
 				},
 				{
 					"appid": 591160,
