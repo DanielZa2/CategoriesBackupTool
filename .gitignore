@@ -96,3 +96,4 @@ ENV/
 ScratchPad.py
 Test/fetch_error.txt
 Log/
+Output/
