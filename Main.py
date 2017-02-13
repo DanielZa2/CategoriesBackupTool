@@ -2,6 +2,7 @@ import json
 import re
 import os
 import datetime
+import string
 
 from urllib import request as urlrequest
 from urllib import error as urlerror
@@ -63,12 +64,19 @@ class Categories:
         else:
             return ret
 
-    def save_apps_string(self, filename=None, filter_symbols=False):
+    def save_apps_string(self, user_id=None, filter_symbols=False, output_folder=False):
         """Save the human-redable string returned by apps_string to the disk. Can filter © and ™ symbols from the names."""
-        if filename is None:
+
+        filename = "Steam Categories"
+        if user_id:
+            filename += " "
+            filename += user_id
+        filename += ".txt"
+
+        if output_folder:
             if not os.path.exists("Output"):
                 os.mkdir("Output")
-            filename = "Output/Steam Categories " + str(datetime.datetime.now().strftime("%Y-%m-%d;%H_%M")) + ".txt"
+            filename = "Output/" + filename
 
         with open(filename, "w", encoding='UTF-8') as file:
             file.write(self.apps_string(filter_symbols))
@@ -225,28 +233,105 @@ def log(msg, prefix="Error_", filename=None):
 
 def locate_steam():
     """Find the installation directory on steam and return all the possible locations of sharedconfig.vdf"""
-    return "Test\\sharedconfig.vdf.txt"
 
+    if os.path.exists("SteamLocation.txt"):
+        with open("SteamLocation.txt", encoding='UTF-8') as file:
+            file_string = file.read()
+            location = json.loads(file_string)
+            location = list(filter(os.path.exists, location))
+            if location:
+                return location
+
+    if os.name == "nt":
+        location = locate_steam_windows()
+    elif os.name == "posix":
+        location = locate_steam_posix()
+    else:
+        class UnsupportedOSException(Exception):
+            pass
+
+        raise UnsupportedOSException("Unsupported OS. Can't search for steam.")
+
+    with open("SteamLocation.txt", "w", encoding='UTF-8') as file:
+        file.write(json.dumps(location))
+    return location
+
+
+def locate_steam_windows():
+    """Find the location of the steam directory and sharedconfig.vdf on windows."""
     results = []
-    if os.path.exists("C:/Program Files (x86)/Steam/Steam.exe") and os.path.exists("C:/Program Files (x86)/Steam/userdata/"):
-        pass
+    popular_locations = {"C:/Program Files (x86)/Steam", "C:/Program Files/Steam", "D:/Program Files (x86)/Steam", "D:/Program Files/Steam"}
 
-    # check C/program files
-    # search for steam.exe -> sharedconfig.vdf
-    # magic?
+    for dirpath in popular_locations:
+        if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
+            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
 
+    results = list(filter(os.path.exists, results))
+    if results:
+        return results
+
+    # location haven't been found in the common places. Look farther.
+
+
+    # Source: http://stackoverflow.com/a/34187346/2842452
+    available_drives = ['%s:/' % d for d in string.ascii_uppercase if os.path.exists('%s:' % d)]
+
+    for drive in available_drives:
+        for dirpath, _, filenames in os.walk(drive):
+            if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
+                f = lambda s: dirpath.replace("\\", "/") + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+                results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+    results = list(filter(os.path.exists, results))
+    return results
+
+
+def locate_steam_posix():
+    """Find the location of the steam directory and sharedconfig.vdf on mac / linux. !!!Untested!!!"""
+    results = []
+    popular_locations = {"~/.local/share/Steam", "~/Steam", "~/.steam"}  # Found those on the web. Might be wrong. Not sure where it is actually installed.
+
+    for dirpath in popular_locations:
+        if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
+            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+    results = list(filter(os.path.exists, results))
+    if results:
+        return results
+
+    # location haven't been found in the common places. Look farther.
+
+    for dirpath, _, filenames in os.walk("/"):
+        if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
+            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+    results = list(filter(os.path.exists, results))
     return results
 
 
 def main():
-    default_path = locate_steam()
-
     applist = SteamAppList().fetch()
-    tags = Categories.factory(default_path)
-    tags.name_apps(applist)
+    sharedconfig_locations = locate_steam()  # there could be multiple config files if multiple steam users use the same computer
 
-    print(tags.apps_string(True))
-    tags.save_apps_string(filter_symbols=True)
+
+    if not sharedconfig_locations:
+        class CantLocateSteamEception(Exception):
+            pass
+
+        raise CantLocateSteamEception("Can't locate steam")
+
+    for loc in sharedconfig_locations:
+        tags = Categories.factory(loc)
+        tags.name_apps(applist)
+
+        # if there are multiple users, we save a file with different name for each by appending the user id to the end of the file name.
+        user_id = None if len(sharedconfig_locations) <= 1 else loc[loc.rfind("/userdata/") + len("/userdata/"):loc.rfind("/7/")]
+
+        print(tags.apps_string(filter_symbols=True))
+        tags.save_apps_string(user_id=user_id, filter_symbols=True, output_folder=True)
 
 
 main()
