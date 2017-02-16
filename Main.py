@@ -4,6 +4,7 @@ import os
 import datetime
 import string
 
+
 from urllib import request as urlrequest
 from urllib import error as urlerror
 
@@ -59,12 +60,12 @@ class Categories:
             ret += tag.app_string()
             ret += "\n"
         if filter_symbols:
-            f = lambda string: string != "©" and string != "™"
+            f = lambda s: s != "©" and s != "™"
             return "".join(filter(f, ret))
         else:
             return ret
 
-    def save_apps_string(self, user_id=None, filter_symbols=False, output_folder=False):
+    def export_apps_string(self, user_id=None, filter_symbols=False):
         """Save the human-redable string returned by apps_string to the disk. Can filter © and ™ symbols from the names."""
 
         filename = "Steam Categories"
@@ -73,10 +74,9 @@ class Categories:
             filename += user_id
         filename += ".txt"
 
-        if output_folder:
-            if not os.path.exists("Output"):
-                os.mkdir("Output")
-            filename = "Output/" + filename
+        if not os.path.exists("backup"):
+            os.mkdir("backup")
+        filename = "backup/" + filename
 
         with open(filename, "w", encoding='UTF-8') as file:
             file.write(self.apps_string(filter_symbols))
@@ -237,15 +237,16 @@ def locate_steam():
     if os.path.exists("SteamLocation.txt"):
         with open("SteamLocation.txt", encoding='UTF-8') as file:
             file_string = file.read()
-            location = json.loads(file_string)
-            location = list(filter(os.path.exists, location))
-            if location:
-                return location
+            locations = json.loads(file_string)
+            f = lambda pair: os.path.exists(pair[1])
+            locations = list(filter(f, locations))
+            if locations:
+                return locations
 
     if os.name == "nt":
-        location = locate_steam_windows()
+        locations = locate_steam_windows()
     elif os.name == "posix":
-        location = locate_steam_posix()
+        locations = locate_steam_posix()
     else:
         class UnsupportedOSException(Exception):
             pass
@@ -253,8 +254,8 @@ def locate_steam():
         raise UnsupportedOSException("Unsupported OS. Can't search for steam.")
 
     with open("SteamLocation.txt", "w", encoding='UTF-8') as file:
-        file.write(json.dumps(location))
-    return location
+        file.write(json.dumps(locations))
+    return locations
 
 
 def locate_steam_windows():
@@ -264,10 +265,11 @@ def locate_steam_windows():
 
     for dirpath in popular_locations:
         if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
             results.extend(map(f, os.listdir(dirpath + "/userdata/")))
 
-    results = list(filter(os.path.exists, results))
+    f = lambda pair: os.path.exists(pair[1])
+    results = list(filter(f, results))
     if results:
         return results
 
@@ -280,10 +282,11 @@ def locate_steam_windows():
     for drive in available_drives:
         for dirpath, _, filenames in os.walk(drive):
             if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
-                f = lambda s: dirpath.replace("\\", "/") + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+                f = lambda s: (s, dirpath.replace("\\", "/") + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
                 results.extend(map(f, os.listdir(dirpath + "/userdata/")))
 
-    results = list(filter(os.path.exists, results))
+    f = lambda pair: os.path.exists(pair[1])
+    results = list(filter(f, results))
     return results
 
 
@@ -294,10 +297,11 @@ def locate_steam_posix():
 
     for dirpath in popular_locations:
         if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
             results.extend(map(f, os.listdir(dirpath + "/userdata/")))
 
-    results = list(filter(os.path.exists, results))
+    f = lambda pair: os.path.exists(pair[1])
+    results = list(filter(f, results))
     if results:
         return results
 
@@ -305,17 +309,55 @@ def locate_steam_posix():
 
     for dirpath, _, filenames in os.walk("/"):
         if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf"
+            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
             results.extend(map(f, os.listdir(dirpath + "/userdata/")))
 
-    results = list(filter(os.path.exists, results))
+    f = lambda pair: os.path.exists(pair[1])
+    results = list(filter(f, results))
     return results
+
+
+def backup_config(src, dst):
+    with open(src, encoding='UTF-8') as input_file:
+        with open(dst, "w", encoding='UTF-8') as output_file:
+            output_file.write(input_file.read())
+
+
+def backup_all_config(locations):
+    for user_id, loc in locations:
+        filename = "sharedconfig.vdf#" + user_id + "#.txt"
+
+        if not os.path.exists("backup"):
+            os.mkdir("backup")
+        filename = "backup/" + filename
+        backup_config(loc, filename)
+
+def restore_config(src, dst):
+    if os.path.exists(dst):
+        sufix = " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
+        new_name = dst.replace("sharedconfig.vdf", "sharedconfig.vdf" + sufix)
+        os.rename(dst, new_name)
+    with open(dst, "w", encoding='UTF-8') as output_file:
+        with open(src, encoding='UTF-8') as input_file:
+            output_file.write(input_file.read())
+
+
+def restore_all_config(locations):
+    class CantRestoreException(Exception):
+        pass
+
+    if not os.path.exists("backup"):
+        raise CantRestoreException("Can't find a backup to restore. Missing backup folder.")
+
+    for user_id, loc in locations:
+        backup_filename = "backup/sharedconfig.vdf#" + user_id + "#.txt"
+        if os.path.exists(backup_filename):
+            restore_config(backup_filename, loc)
 
 
 def main():
     applist = SteamAppList().fetch()
     sharedconfig_locations = locate_steam()  # there could be multiple config files if multiple steam users use the same computer
-
 
     if not sharedconfig_locations:
         class CantLocateSteamEception(Exception):
@@ -323,15 +365,65 @@ def main():
 
         raise CantLocateSteamEception("Can't locate steam")
 
-    for loc in sharedconfig_locations:
+    backup_all_config(sharedconfig_locations)
+    # restore_config(sharedconfig_locations)
+
+
+    for user_id, loc in sharedconfig_locations:
         tags = Categories.factory(loc)
         tags.name_apps(applist)
 
         # if there are multiple users, we save a file with different name for each by appending the user id to the end of the file name.
-        user_id = None if len(sharedconfig_locations) <= 1 else loc[loc.rfind("/userdata/") + len("/userdata/"):loc.rfind("/7/")]
+        user_id = user_id if len(sharedconfig_locations) > 1 else None
 
         print(tags.apps_string(filter_symbols=True))
-        tags.save_apps_string(user_id=user_id, filter_symbols=True, output_folder=True)
+        tags.export_apps_string(user_id=user_id, filter_symbols=True)
 
 
-main()
+def gui_init():
+    applist = SteamAppList().fetch()
+    sharedconfig_locations = locate_steam()
+
+    if not sharedconfig_locations:
+        class CantLocateSteamEception(Exception):
+            pass
+
+        raise CantLocateSteamEception("Can't locate steam")
+
+    return applist, sharedconfig_locations
+
+
+def gui_backup(applist_steamlocations):
+    applist, sharedconfig_locations = applist_steamlocations
+    backup_all_config(sharedconfig_locations)
+
+
+def gui_restore(applist_steamlocations):
+    applist, sharedconfig_locations = applist_steamlocations
+    restore_all_config(sharedconfig_locations)
+
+
+def gui_process(applist_steamlocations):
+    applist, sharedconfig_locations = applist_steamlocations
+    user_categories = {}
+    for user_id, loc in sharedconfig_locations:
+        user_categories[user_id] = Categories.factory(loc)
+        user_categories[user_id].name_apps(applist)
+
+
+def gui_export(user_categories, filter_symbols=False):
+    if len(user_categories) == 1:
+        tags = list(user_categories.values())[0]
+        ret = tags.apps_string(filter_symbols)
+        tags.export_apps_string(None, filter_symbols)
+    else:
+        ret = ""
+        for user_id, tags in user_categories.items():
+            # Because there are multiple users, we need different file names for each user. We append id to the end of the name.
+            ret += "\nUser: " + str(user_id) + "\n" + "\n"
+            ret += tags.apps_string(filter_symbols)
+            tags.export_apps_string(user_id, filter_symbols)
+    return ret
+
+
+#main()
