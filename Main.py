@@ -19,6 +19,9 @@ from urllib import error as urlerror
 OUTPUT__SHAREDCONFIG_VDF_JSON = False
 LOG_ERROR___FETCH_APPLIST = True
 
+class ParseException(Exception):
+    pass
+
 
 class Category:
     """Describe a single steam category."""
@@ -318,9 +321,15 @@ def locate_steam_posix():
 
 
 def backup_config(src, dst):
-    with open(src, encoding='UTF-8') as input_file:
-        with open(dst, "w", encoding='UTF-8') as output_file:
-            output_file.write(input_file.read())
+    try:
+        with open(src, encoding='UTF-8') as input_file:
+            with open(dst, "w", encoding='UTF-8') as output_file:
+                output_file.write(input_file.read())
+    except UnicodeDecodeError:
+        raise ParseException("Can't open source file to backup")
+    except (FileExistsError, IOError):
+        raise ParseException("Can't open target file to backup")
+
 
 
 def backup_all_config(locations):
@@ -333,13 +342,18 @@ def backup_all_config(locations):
         backup_config(loc, filename)
 
 def restore_config(src, dst):
-    if os.path.exists(dst):
-        sufix = " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
-        new_name = dst.replace("sharedconfig.vdf", "sharedconfig.vdf" + sufix)
-        os.rename(dst, new_name)
-    with open(dst, "w", encoding='UTF-8') as output_file:
-        with open(src, encoding='UTF-8') as input_file:
-            output_file.write(input_file.read())
+    try:
+        if os.path.exists(dst):
+            sufix = " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
+            new_name = dst.replace("sharedconfig.vdf", "sharedconfig.vdf" + sufix)
+            os.rename(dst, new_name)
+        with open(dst, "w", encoding='UTF-8') as output_file:
+            with open(src, encoding='UTF-8') as input_file:
+                output_file.write(input_file.read())
+    except UnicodeDecodeError:
+        raise ParseException("Can't open source file to restore")
+    except (FileExistsError, IOError):
+        raise ParseException("Can't open target file to restore")
 
 
 def restore_all_config(locations):
