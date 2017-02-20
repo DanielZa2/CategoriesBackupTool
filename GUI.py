@@ -3,39 +3,23 @@ import tkinter.filedialog
 import tkinter.messagebox
 from tkinter import font
 import Main as bk
+import ResourceStrings as st
 import datetime
-
-"""
-Design:
-
-Button 1:  Detect / backup sharedconfig.vdf
-Button 2: Export readable format of sharedconfig.vdf
-Button 3: restore backedup sharedconfig.vdf
-
-
-
-Checkbox 1: Show trademark / copyright signs in names
-
-"""
 
 
 class Exporter:
-    INSTRUCTION = \
-        ("INSTRUCTION:\n"
-         " Select the steam users you want to backup / export.\n"
-         " If your user isn't listed on the box bellow you can add it by browsing to:\n"
-         " Steam\\userdata\\<USER_ID>\\7\\remote\\sharedconfig.vdf")
-
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Categories exporter")
+        self.root.title(st.program_title)
+
+        self.label_instruction = tk.Label(self.root, text=st.exporter_instruction, justify=tk.LEFT)
+        self.label_instruction.pack(side=tk.TOP)
+
         self.frame_text = tk.Frame(self.root)
         self.frame_text.pack(side=tk.TOP)
 
-        self.text_output = tk.Text(self.frame_text)
+        self.text_output = tk.Text(self.frame_text, width=65)
         self.text_output.pack(side=tk.LEFT)
-
-        self.text_output.insert(tk.END, Exporter.INSTRUCTION)
 
         self.scroll_text = tk.Scrollbar(self.frame_text, orient=tk.VERTICAL, command=self.text_output.yview)
         self.scroll_text.pack(side=tk.RIGHT, fill=tk.Y)
@@ -44,11 +28,11 @@ class Exporter:
         self.frame_buttons = tk.Frame(self.root)
         self.frame_buttons.pack(side=tk.BOTTOM)
 
-        self.button_backup = tk.Button(self.frame_buttons, text="backup", command=self.action_backup)
-        self.button_restore = tk.Button(self.frame_buttons, text="restore", command=self.action_restore)
-        self.button_export = tk.Button(self.frame_buttons, text="export", command=self.action_export)
+        self.button_backup = tk.Button(self.frame_buttons, text=st.exporter_button_backup, command=self.action_backup)
+        self.button_restore = tk.Button(self.frame_buttons, text=st.exporter_button_restore, command=self.action_restore)
+        self.button_export = tk.Button(self.frame_buttons, text=st.exporter_button_export, command=self.action_export)
         self.checkbox_symbols_var = False
-        self.checkbox_symbols = tk.Checkbutton(self.frame_buttons, text="Hide legal symbols", command=self.action_checkbox)
+        self.checkbox_symbols = tk.Checkbutton(self.frame_buttons, text=st.exporter_checkbox_legal, command=self.action_checkbox)
         self.button_backup.pack(side=tk.LEFT)
         self.button_restore.pack(side=tk.LEFT)
         self.button_export.pack(side=tk.LEFT)
@@ -58,32 +42,31 @@ class Exporter:
         self.steam_categories = None
         self.steam_applist = None
 
-
     def action_checkbox(self):
         self.checkbox_symbols_var = not self.checkbox_symbols_var
 
     def action_backup(self):
         try:
-            selection = tk.filedialog.asksaveasfilename(parent=self.root, title="Save backup to..", initialfile="sharedconfig.vdf",
-                                                        filetypes={("Valve's Data Format", "*.vdf"), ("Text file", "*.txt"), ("all files", "*.*")})
+            selection = tk.filedialog.asksaveasfilename(parent=self.root, title=st.exporter_title_backup, initialfile=st.sharedconfigvdf,
+                                                        filetypes={(st.vdf_file, "*.vdf"), (st.text_file, "*.txt"), (st.all_file, "*.*")})
             if selection == self.steam_location:
-                tk.messagebox.showerror("Backup Error", "Backup error: Source and target file are the same", parent=self.root)
+                tk.messagebox.showerror(st.error_backup, st.error_backup_text_same, parent=self.root)
             if selection and selection != self.steam_location:
                 bk.backup_config(self.steam_location, selection)
         except bk.ParseException:
-            tk.messagebox.showerror("Backup Error", "Backup error: The source file is probably not sharedconfig.vdf", parent=self.root)
+            tk.messagebox.showerror(st.error_backup, st.error_backup_text_not_vdf, parent=self.root)
 
     def action_restore(self):
         try:
-            selection = tk.filedialog.askopenfilename(parent=self.root, title="Restore backup from..", initialfile="sharedconfig.vdf",
-                                                      filetypes={("Valve's Data Format", "*.vdf"), ("Text file", "*.txt"), ("all files", "*.*")})
+            selection = tk.filedialog.askopenfilename(parent=self.root, title=st.exporter_title_restore, initialfile=st.sharedconfigvdf,
+                                                      filetypes={(st.vdf_file, "*.vdf"), (st.text_file, "*.txt"), (st.all_file, "*.*")})
 
             if selection == self.steam_location:
-                tk.messagebox.showerror("Restore Error", "Restore error: Source and target file are the same", parent=self.root)
+                tk.messagebox.showerror(st.error_restore, st.error_restore_text_same, parent=self.root)
             if selection and selection != self.steam_location:
                 bk.restore_config(selection, self.steam_location)
         except bk.ParseException:
-            tk.messagebox.showerror("Restore Error", "Restore error: The source file is probably not sharedconfig.vdf", parent=self.root)
+            tk.messagebox.showerror(st.error_restore, st.error_restore_text_not_vdf, parent=self.root)
 
     def action_export(self):
         if self.steam_categories is None:
@@ -93,9 +76,7 @@ class Exporter:
         text = self.steam_categories.apps_string(self.checkbox_symbols_var)
         self.text_output.delete(1.0, tk.END)
         self.text_output.insert(tk.END, text)
-        # TODO insert defualt name with the date
-        # TODO play around with the defaultextension parameter in order to make the extension sleected by filetypes be the one used when no extension  is selected
-        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title="Export to..", filetypes={("Text file", "*.txt"), ("all files", "*.*")})
+        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title=st.exporter_title_export, filetypes={(st.text_file, "*.txt"), (st.all_file, "*.*")})
         if selection:
             with open(selection, "w", encoding='UTF-8') as file:
                 file.write(text)
@@ -111,25 +92,19 @@ class Exporter:
 
     def start(self, locations):
         self.steam_location = locations
-        self.text_output.insert(tk.END, "\n\nSteam Location:" + str(locations))
+        self.text_output.insert(tk.END, st.exporter_text_prefix + str(locations))
         self.steam_applist = bk.SteamAppList().fetch()
         self.root.mainloop()
 
 
 class SteamSelector:
-    INSTRUCTION = \
-        ("INSTRUCTION:\n"
-         " Select the steam users you want to backup / export.\n"
-         " If your user isn't listed on the box bellow you can add it by browsing to:\n"
-         " Steam\\userdata\\<USER_ID>\\7\\remote\\sharedconfig.vdf")
-
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Categories exporter")
+        self.root.title(st.program_title)
         self.frame_select = tk.Frame(self.root)
         self.frame_select.pack(side=tk.TOP)
 
-        self.label_instruction = tk.Label(self.frame_select, text=SteamSelector.INSTRUCTION, justify=tk.LEFT)
+        self.label_instruction = tk.Label(self.frame_select, text=st.selector_instruction, justify=tk.LEFT)
         self.label_instruction.pack(side=tk.TOP)
 
         self.listbox_selector = SteamSelector.Listbox(self.frame_select, selectmode=tk.SINGLE)
@@ -138,8 +113,8 @@ class SteamSelector:
         self.frame_buttons = tk.Frame(self.root)
         self.frame_buttons.pack(side=tk.BOTTOM)
 
-        self.button_select = tk.Button(self.frame_buttons, text="Select", command=self.action_select)
-        self.button_browse = tk.Button(self.frame_buttons, text="Browse", command=self.action_browse)
+        self.button_select = tk.Button(self.frame_buttons, text=st.selector_button_select, command=self.action_select)
+        self.button_browse = tk.Button(self.frame_buttons, text=st.selector_button_browse, command=self.action_browse)
         self.button_select.pack(side=tk.LEFT)
         self.button_browse.pack(side=tk.LEFT)
 
@@ -150,7 +125,7 @@ class SteamSelector:
         if delta.seconds <= 0.5:
             return
         self.time_button_click_delay = datetime.datetime.now()
-        selection = tk.filedialog.askopenfilename(parent=self.root, title="Select sharecondig.vdf..", initialfile="sharedconfig.vdf", filetypes={("Valve's Data Format", "*.vdf")}, mustexist=True)
+        selection = tk.filedialog.askopenfilename(parent=self.root, title=st.selector_title_browse, initialfile=st.sharedconfigvdf, filetypes={(st.vdf_file, "*.vdf")})
         if selection:
             self.listbox_selector.insert(tk.END, selection)
             self.listbox_selector.autowidth(250)
