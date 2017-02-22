@@ -24,10 +24,10 @@ class Category:
         self.games = []
 
     def __repr__(self):
-        return "<Tag: " + self.name + ">"
+        return "<Category: " + self.name + ">"
 
     def __str__(self):
-        return "Tag: " + self.name
+        return "Category: " + self.name
 
     def app_string(self):
         """Return human-redable string formated to contain the category and all the apps that belong to it."""
@@ -130,7 +130,7 @@ class SteamApp:
     def get_name(self, applist):
         """Lookup your own name in the supplied list of names."""
         if self.id.isdigit():
-            self.name = applist.id_lookup.get(int(self.id), None)
+            self.name = applist.id_lookup.get(int(self.id), None)  # default=None
 
 
 class SteamAppList:

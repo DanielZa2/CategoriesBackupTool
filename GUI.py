@@ -158,7 +158,7 @@ class Exporter:
         text = self.steam_categories.apps_string(self.checkbox_symbols_var)
         self.text_output.delete(1.0, tk.END)
         self.text_output.insert(tk.END, text)
-        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title=st.exporter_title_export, filetypes={(st.text_file, "*.txt"), (st.all_file, "*.*")})
+        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title=st.exporter_title_export, filetypes={(st.text_file, "*.txt")})  # , (st.all_file, "*.*")
         if selection:
             with open(selection, "w", encoding='UTF-8') as file:
                 file.write(text)
