@@ -2,7 +2,7 @@
 
 Categories Backup Tool is a tool to.. you guessed it, backup your categories. On Steam.
 Those things:
-![Categories](https://github.comDanielZa2/CategoriesBackupTool/blob/master/Images/Im1.png)
+![Categories](https://raw.githubusercontent.com/DanielZa2/CategoriesBackupTool/master/Images/Im1.png)
 
 ## What does the tool do excatly?
 
@@ -12,7 +12,7 @@ It gives you 3 options. Backup, Restore and Export.
 2. Restore allows you to return the categories to the state they were in before the backup.
 3. Export allows you to create a human readable (nicely looking) file containing all the information about your categories.
 
-![Export output](https://github.comDanielZa2/CategoriesBackupTool/blob/master/Images/Im2.png)
+![Export output](https://raw.githubusercontent.com/DanielZa2/CategoriesBackupTool/master/Images/Im2.png)
 
 ## How does it work?
 
