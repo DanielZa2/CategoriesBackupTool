@@ -1,8 +1,7 @@
 # Categories Backup Tool
 
-Categories Backup Tool is a tool to.. you guessed it, backup your categories. On Steam.
+Categories Backup Tool is a tool to.. you guessed it, backup your categories. On Steam. Those things:
 
-Those things:
 ![Categories](https://raw.githubusercontent.com/DanielZa2/CategoriesBackupTool/master/Images/Im1.png)
 
 ## What does the tool do?
@@ -17,7 +16,7 @@ The tool gives you 3 options. To backup, restore and export your categories.
 
 ## How does it work?
 
-The tool reads a file in the steam directory called *sharedconfig.vdf* which contains all the information it needs. This file contain the application id numbers of your games and  the different categories to which they belong. The backup and restore options are essentially just copying sharedconfig.vdf. The export option reads the file, extracts all the relevant information, matches the ids with names pulled either from a local file or from the net and presents it in a nice format.
+The tool reads a file in the steam directory called *sharedconfig.vdf* which contains all the information it needs. This file contain the application id numbers of your games and  the different categories to which they belong. The backup and restore options are essentially just copying *sharedconfig.vdf*. The export option reads the file, extracts all the relevant information, matches the ids with names pulled either from a local file or from the net and presents it in a nice format.
 
 ## Does it support Mac / Linux?
 It should work but I don't have a machine to test it on, so you tell me.
