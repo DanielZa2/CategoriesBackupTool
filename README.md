@@ -29,14 +29,14 @@ You have the cross-platform python version and the 64bit Windows executable vers
 
 ## FAQ
 
-### Something went wrong, the tool displays too many games as (AppID: <id_number>).
+### Something went wrong, the tool displays too many games as (AppID: \<id_number\>).
 Seems that it can't pull the right name for this steam application. In case of new games, you can delete Applist.txt from the program folder and it will pull new one from the web.
 
-### Is it an official tool? Does it somehow related to Valve?
-Nope. **No endorsement whatsoever on Valve's part.** Just something I wrote for myself and decided to post online.
+### Is it an official tool? Does it somehow related to Steam or Valve?
+Nope. **There is no endorsement from Valve for anything in this project.** Just something I wrote for myself and decided to post online.
 
 ### This program deleted my steam library / self-destructed my computer / initiated a machine upraising. 
-I'm sorry to hear that, but you're using this program at your own risk and I'm taking **no** responsibility for **anything** it does. It works fine on my computer. Sometimes.
+I'm sorry to hear that, but you're using this program at your own risk and I'm take **no** responsibility for **anything** it does. It works fine on my computer. Sometimes.
 
 ### You really take no responsibility for potential machine upraising caused by your software?
 All praise our new machine overlords.
@@ -45,5 +45,7 @@ All praise our new machine overlords.
 Never written anything in python before. Seemed like a good place to start.
 
 ### Your code is really unpythonic. 
-Never written anything at python before. Seemed like a good start. But seriously feel free contribute and suggest improvements.
+Never written anything at python before. Seemed like a good start.
+
+But seriously feel free contribute and suggest improvements.
 
