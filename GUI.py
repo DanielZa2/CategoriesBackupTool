@@ -5,6 +5,7 @@ from tkinter import font
 import Main as bk
 import ResourceStrings as st
 import datetime
+import logging
 
 
 class SteamSelector:

@@ -4,13 +4,14 @@ import datetime
 import string
 import vdf  # Source https://github.com/ValvePython/vdf
 import collections
+import logging
 
-# TODO change the logging. it is stupid.
 
 from urllib import request as urlrequest
 from urllib import error as urlerror
 
-LOG_ERROR___FETCH_APPLIST = False
+
+logging.basicConfig(filename="log.log")
 
 
 class ParseException(Exception):
@@ -130,9 +131,8 @@ class SteamAppList:
         req = urlrequest.Request(url)
         try:
             json_bytes = urlrequest.urlopen(req).read()
-        except urlerror.HTTPError as e:
-            if LOG_ERROR___FETCH_APPLIST:
-                log(str(e) + "\n\n\n" + str(req.full_url), "HTTPError_")
+        except urlerror.HTTPError:
+            logging.exception("Failed to fetch applist from net")
             return None
 
         return json_bytes.decode("utf-8")
@@ -156,9 +156,8 @@ class SteamAppList:
             game_info = json.loads(json_text)
             return game_info["applist"]["apps"]["app"]
 
-        except (json.decoder.JSONDecodeError, KeyError) as e:
-            if LOG_ERROR___FETCH_APPLIST:
-                log(str(e) + "\n\n\n" + json_text, "ParseError_")
+        except (json.decoder.JSONDecodeError, KeyError):
+            logging.exception("Failed to parse fetched applist")
             return None
 
     def name_apps(self, lst):
@@ -351,16 +350,6 @@ class BackupAndRestore:
 
 
 
-def log(msg, prefix="Error_", filename=None):
-    """Logs and error as sperate file inside the ./Log dir"""
-    if not os.path.exists("Log"):
-        os.mkdir("Log")
-
-    if filename is None:
-        filename = prefix + str(datetime.datetime.now().strftime("%Y-%m-%d;%H_%M_%S;%f")) + ".txt"
-
-    with open("Log/" + filename, "w", encoding='UTF-8') as file:
-        file.write(msg)
 
 def main():
     # backup_better("Test/sharedconfig.vdf", "Test/123.txt")
