@@ -37,7 +37,8 @@ class SteamSelector:
         if delta.seconds <= 0.5:
             return
         self.time_button_click_delay = datetime.datetime.now()
-        selection = tk.filedialog.askopenfilename(parent=self.root, title=st.selector_title_browse, initialfile=st.sharedconfigvdf, filetypes={(st.vdf_file, "*.vdf")})
+        filetypes = [(st.vdf_file, "*.vdf"), (st.all_file, "*.*")]
+        selection = tk.filedialog.askopenfilename(parent=self.root, title=st.selector_title_browse, initialfile=st.sharedconfigvdf, filetypes=filetypes)
         if selection:
             self.listbox_selector.insert(tk.END, selection)
             self.listbox_selector.autowidth(250)
@@ -127,8 +128,9 @@ class Exporter:
     def action_backup(self):
         """Bound to the backup button. Allows the user to select the location to which sharedconfig.vdf will be copied,"""
         try:
-            selection = tk.filedialog.asksaveasfilename(parent=self.root, title=st.exporter_title_backup, initialfile=st.sharedconfigvdf,
-                                                        filetypes={(st.vdf_file, "*.vdf"), (st.text_file, "*.txt"), (st.all_file, "*.*")})
+            filetypes = [(st.json_file, "*.json"), (st.text_file, "*.txt"), (st.all_file, "*.*")]
+            selection = tk.filedialog.asksaveasfilename(parent=self.root, title=st.exporter_title_backup, defaultextension=".json", filetypes=filetypes)
+
             if selection == self.steam_location:
                 tk.messagebox.showerror(st.error_backup, st.error_backup_text_same, parent=self.root)
             if selection and selection != self.steam_location:
@@ -139,8 +141,8 @@ class Exporter:
     def action_restore(self):
         """Bound to the restore button. Allows the user to select the location from which sharedconfig.vdf will be restored,"""
         try:
-            selection = tk.filedialog.askopenfilename(parent=self.root, title=st.exporter_title_restore, initialfile=st.sharedconfigvdf,
-                                                      filetypes={(st.vdf_file, "*.vdf"), (st.text_file, "*.txt"), (st.all_file, "*.*")})
+            filetypes = [(st.json_file, "*.json"), (st.text_file, "*.txt"), (st.all_file, "*.*")]
+            selection = tk.filedialog.askopenfilename(parent=self.root, title=st.exporter_title_restore, defaultextension=".json", filetypes=filetypes)
 
             if selection == self.steam_location:
                 tk.messagebox.showerror(st.error_restore, st.error_restore_text_same, parent=self.root)
@@ -158,7 +160,8 @@ class Exporter:
         text = self.steam_categories.apps_string(self.checkbox_symbols_var)
         self.text_output.delete(1.0, tk.END)
         self.text_output.insert(tk.END, text)
-        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title=st.exporter_title_export, filetypes={(st.text_file, "*.txt")})  # , (st.all_file, "*.*")
+        filetypes = [(st.text_file, "*.txt"), (st.all_file, "*.*")]
+        selection = tk.filedialog.asksaveasfilename(parent=self.root, defaultextension=".txt", title=st.exporter_title_export, filetypes=filetypes)  # (st.all_file, "*.*")
         if selection:
             with open(selection, "w", encoding='UTF-8') as file:
                 file.write(text)

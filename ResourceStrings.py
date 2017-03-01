@@ -32,6 +32,7 @@ selector_title_browse = "Select sharecondig.vdf.."
 
 text_file = "Text file"
 vdf_file = "Valve's Data Format"
+json_file = "JSON file"
 all_file = "all files"
 
 
