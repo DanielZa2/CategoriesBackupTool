@@ -6,17 +6,14 @@ Categories Backup Tool is a tool to.. you guessed it, backup your categories. On
 
 ## What does the tool do?
 
-The tool gives you 3 options. To backup, restore and export your categories.
-
-1. Backup allows you to save a copy of the file that stores your steam category information.
-2. Restore allows you to return the categories to the state they were in before the backup.
-3. Export allows you to create a human readable (nicely looking) file containing all the information about your categories.
+The tool gives you 3 options. To backup, restore and export your categories. Backup and restore are self explanatory. You create a file that contains all the information on your current categories which you can letter return to. The restore option does not delete anything and can be reversed if something goes wrong. Export creates a human readable (nicely looking) file containing the same information.
 
 ![Export output](https://raw.githubusercontent.com/DanielZa2/CategoriesBackupTool/master/Images/Im2.png)
 
 ## How does it work?
 
-The tool reads a file in the steam directory called *sharedconfig.vdf* which contains all the information it needs. This file contain the application id numbers of your games and  the different categories to which they belong. The backup and restore options are essentially just copying *sharedconfig.vdf*. The export option reads the file, extracts all the relevant information, matches the ids with names pulled either from a local file or from the net and presents it in a nice format.
+The tool reads a file in the steam directory called *sharedconfig.vdf* which contains all the information it needs. This file contain the application id numbers of your games and  the different categories to which they belong. The backup option copy the "tags" key for each game and stores it in a JSON file. The restore option puts this data back into the file while preserving any other changes. It renames the current *sharedconfig.vdf* instead of deleting it so that it could be reversed, in cae something goes wrong.
+The export option reads the file, extracts all the relevant information, matches the ids with names pulled either from a local file or from the net and presents it in a nice format.
 
 ## Does it support Mac / Linux?
 It should work but I don't have a machine to test it on, so you tell me.
