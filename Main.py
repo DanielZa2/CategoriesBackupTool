@@ -1,14 +1,15 @@
 import json
-import re
 import os
 import datetime
 import string
+import vdf  # Source https://github.com/ValvePython/vdf
+import collections
+
+# TODO change the logging. it is stupid.
 
 from urllib import request as urlrequest
 from urllib import error as urlerror
 
-
-OUTPUT__SHAREDCONFIG_VDF_JSON = False
 LOG_ERROR___FETCH_APPLIST = False
 
 
@@ -84,28 +85,8 @@ class Categories:
         """Read all the apps the user has from sharedconfig.vdf. Returns a dict. Intermidiate function."""
         with open(path, encoding='UTF-8') as file:
             file_string = file.read()
-            file_string = Categories.json_from_valve(file_string)
-            if OUTPUT__SHAREDCONFIG_VDF_JSON:
-                with open(path + ".json", "w", encoding='UTF-8') as out:
-                    out.write(file_string)
-
-            parsed = json.loads(file_string)
+            parsed = vdf.loads(file_string)
             return parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
-
-    @staticmethod
-    def json_from_valve(file_string):
-        """Convert the json-like format valve uses to proper json. Used to read sharedconfig.vdf."""
-        file_string = "{\n" + file_string + "}"
-        # "txt" -> "txt":
-        file_string = re.sub(r"(\n[^\n\"]*\"[^\n\"]*\")\n", r"\1:\n", file_string)
-        # "txt" "bob" -> "txt": "bob",
-        file_string = re.sub(r"([^\"\n]*\"[^\"\n]*\")([^\"\n]*)([^\"\n]*\"[^\"\n]*\")", r"\1:\2\3,", file_string)
-        # } -> },
-        file_string = file_string.replace("}", "},")
-        # },} -> }}
-        file_string = re.sub(r",([\t|\n]*)\}", r"\1}", file_string)[0:-1]
-
-        return file_string
 
 
 class SteamApp:
@@ -202,6 +183,174 @@ class SteamAppList:
         return self
 
 
+
+
+class SteamLocator:
+    """Collection of methods used to locate steam on a given machine. Not a real class and shouldn't be instanced."""
+
+    @staticmethod
+    def locate_steam():
+        """Find the installation directory on steam and return all the possible locations of sharedconfig.vdf"""
+
+        if os.path.exists("SteamLocation.txt"):
+            with open("SteamLocation.txt", encoding='UTF-8') as file:
+                file_string = file.read()
+                locations = json.loads(file_string)
+                f = lambda pair: os.path.exists(pair[1])
+                locations = list(filter(f, locations))
+                if locations:
+                    return locations
+
+        if os.name == "nt":
+            locations = SteamLocator.locate_steam_windows()
+        elif os.name == "posix":
+            locations = SteamLocator.locate_steam_posix()
+        else:
+            class UnsupportedOSException(Exception):
+                pass
+
+            raise UnsupportedOSException("Unsupported OS. Can't search for steam.")
+
+        with open("SteamLocation.txt", "w", encoding='UTF-8') as file:
+            file.write(json.dumps(locations))
+        return locations
+
+    @staticmethod
+    def locate_steam_windows():
+        """Find the location of the steam directory and sharedconfig.vdf on windows."""
+        results = []
+        popular_locations = {"C:/Program Files (x86)/Steam", "C:/Program Files/Steam", "D:/Program Files (x86)/Steam", "D:/Program Files/Steam"}
+
+        for dirpath in popular_locations:
+            if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
+                f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
+                results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+        f = lambda pair: os.path.exists(pair[1])
+        results = list(filter(f, results))
+        if results:
+            return results
+
+        # location haven't been found in the common places. Look farther.
+
+
+        # Source: http://stackoverflow.com/a/34187346/2842452
+        available_drives = ['%s:/' % d for d in string.ascii_uppercase if os.path.exists('%s:' % d)]
+
+        for drive in available_drives:
+            for dirpath, _, filenames in os.walk(drive):
+                if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
+                    f = lambda s: (s, dirpath.replace("\\", "/") + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
+                    results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+        f = lambda pair: os.path.exists(pair[1])
+        results = list(filter(f, results))
+        return results
+
+    @staticmethod
+    def locate_steam_posix():
+        """Find the location of the steam directory and sharedconfig.vdf on mac / linux. !!!Untested!!!"""
+        results = []
+        popular_locations = {"~/.local/share/Steam", "~/Steam", "~/.steam"}  # Found those on the web. Might be wrong. Not sure where it is actually installed.
+
+        for dirpath in popular_locations:
+            if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
+                f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
+                results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+        f = lambda pair: os.path.exists(pair[1])
+        results = list(filter(f, results))
+        if results:
+            return results
+
+        # location haven't been found in the common places. Look farther.
+
+        for dirpath, _, filenames in os.walk("/"):
+            if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
+                f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
+                results.extend(map(f, os.listdir(dirpath + "/userdata/")))
+
+        f = lambda pair: os.path.exists(pair[1])
+        results = list(filter(f, results))
+        return results
+
+
+class BackupAndRestore:
+    """Collection of methods to backup and restore steam categories. Not a real class and shouldn't be instanced."""
+
+    @staticmethod
+    def backup_config_whole_file(src, dst):
+        """Backup the file by coping the src to the dst. The old backup method."""
+        try:
+            with open(src, encoding='UTF-8') as input_file:
+                with open(dst, "w", encoding='UTF-8') as output_file:
+                    output_file.write(input_file.read())
+        except UnicodeDecodeError:
+            raise ParseException("Can't open source file to backup")
+        except (FileExistsError, IOError):
+            raise ParseException("Can't open target file to backup")
+
+    @staticmethod
+    def restore_config_whole_file(src, dst):
+        """Restore the backup from src to dst. if dst exists, rename it. The old restore method."""
+        try:
+            if os.path.exists(dst):
+                new_name = dst + " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
+                os.rename(dst, new_name)
+            with open(dst, "w", encoding='UTF-8') as output_file:
+                with open(src, encoding='UTF-8') as input_file:
+                    output_file.write(input_file.read())
+        except UnicodeDecodeError:
+            raise ParseException("Can't open source file to restore")
+        except (FileExistsError, IOError):
+            raise ParseException("Can't open target file to restore")
+
+    @staticmethod
+    def backup_config(src, dst):
+        """Backup the config file by copying only the categories to and external file. The new method. """
+        with open(src, encoding='UTF-8') as valves_file:
+            content = vdf.loads(valves_file.read(), mapper=collections.OrderedDict)
+            target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
+            filtered_target = {x: target_categories[x].get("tags", None) for x in target_categories.keys()}
+            filtered_target = {x: y for x, y in filtered_target.items() if y is not None and y is not ""}
+
+            with open(dst, "w", encoding='UTF-8') as backup_file:
+                json.dump(filtered_target, backup_file, indent="\t")
+
+    @staticmethod
+    def restore_config(src, dst):
+        """Restore the backup. if dst exists, rename it. The new method."""
+        try:
+            with open(src, encoding='UTF-8') as backup_file:
+                backedup_categories = json.loads(backup_file.read(), object_pairs_hook=collections.OrderedDict)
+
+            with open(dst, encoding='UTF-8') as valves_file:
+                content = vdf.loads(valves_file.read(), mapper=collections.OrderedDict)
+                target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
+
+                content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"] = BackupAndRestore.__insert_categories__(target_categories, backedup_categories)
+
+            new_name = dst + " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
+            os.rename(dst, new_name)
+            with open(dst, "w", encoding='UTF-8') as output_file:
+                vdf.dump(content, output_file, pretty=True)
+
+
+        except UnicodeDecodeError:
+            raise ParseException("Can't open source file to restore")
+        except (FileExistsError, IOError):
+            raise ParseException("Can't open target file to restore")
+
+    @staticmethod
+    def __insert_categories__(target, src):
+        for app_id, tags in src.items():
+            if app_id in target:
+                target[app_id]["tags"] = tags
+
+        return target
+
+
+
 def log(msg, prefix="Error_", filename=None):
     """Logs and error as sperate file inside the ./Log dir"""
     if not os.path.exists("Log"):
@@ -213,115 +362,12 @@ def log(msg, prefix="Error_", filename=None):
     with open("Log/" + filename, "w", encoding='UTF-8') as file:
         file.write(msg)
 
+def main():
+    # backup_better("Test/sharedconfig.vdf", "Test/123.txt")
+    # BackupAndRestore.restore_better("Test/123.txt", "Test/sharedconfig.vdf")
+    pass
 
-def locate_steam():
-    """Find the installation directory on steam and return all the possible locations of sharedconfig.vdf"""
-
-    if os.path.exists("SteamLocation.txt"):
-        with open("SteamLocation.txt", encoding='UTF-8') as file:
-            file_string = file.read()
-            locations = json.loads(file_string)
-            f = lambda pair: os.path.exists(pair[1])
-            locations = list(filter(f, locations))
-            if locations:
-                return locations
-
-    if os.name == "nt":
-        locations = locate_steam_windows()
-    elif os.name == "posix":
-        locations = locate_steam_posix()
-    else:
-        class UnsupportedOSException(Exception):
-            pass
-
-        raise UnsupportedOSException("Unsupported OS. Can't search for steam.")
-
-    with open("SteamLocation.txt", "w", encoding='UTF-8') as file:
-        file.write(json.dumps(locations))
-    return locations
+if __name__ == "__main__":
+    main()
 
 
-def locate_steam_windows():
-    """Find the location of the steam directory and sharedconfig.vdf on windows."""
-    results = []
-    popular_locations = {"C:/Program Files (x86)/Steam", "C:/Program Files/Steam", "D:/Program Files (x86)/Steam", "D:/Program Files/Steam"}
-
-    for dirpath in popular_locations:
-        if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
-            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
-
-    f = lambda pair: os.path.exists(pair[1])
-    results = list(filter(f, results))
-    if results:
-        return results
-
-    # location haven't been found in the common places. Look farther.
-
-
-    # Source: http://stackoverflow.com/a/34187346/2842452
-    available_drives = ['%s:/' % d for d in string.ascii_uppercase if os.path.exists('%s:' % d)]
-
-    for drive in available_drives:
-        for dirpath, _, filenames in os.walk(drive):
-            if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
-                f = lambda s: (s, dirpath.replace("\\", "/") + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
-                results.extend(map(f, os.listdir(dirpath + "/userdata/")))
-
-    f = lambda pair: os.path.exists(pair[1])
-    results = list(filter(f, results))
-    return results
-
-
-def locate_steam_posix():
-    """Find the location of the steam directory and sharedconfig.vdf on mac / linux. !!!Untested!!!"""
-    results = []
-    popular_locations = {"~/.local/share/Steam", "~/Steam", "~/.steam"}  # Found those on the web. Might be wrong. Not sure where it is actually installed.
-
-    for dirpath in popular_locations:
-        if os.path.exists(dirpath + "/Steam.exe") and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
-            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
-
-    f = lambda pair: os.path.exists(pair[1])
-    results = list(filter(f, results))
-    if results:
-        return results
-
-    # location haven't been found in the common places. Look farther.
-
-    for dirpath, _, filenames in os.walk("/"):
-        if "Steam.exe" in filenames and os.path.exists(dirpath + "/userdata/"):
-            f = lambda s: (s, dirpath + "/userdata/" + s + "/7/remote/sharedconfig.vdf")
-            results.extend(map(f, os.listdir(dirpath + "/userdata/")))
-
-    f = lambda pair: os.path.exists(pair[1])
-    results = list(filter(f, results))
-    return results
-
-
-def backup_config(src, dst):
-    """Backup the file by coping the src to the dst"""
-    try:
-        with open(src, encoding='UTF-8') as input_file:
-            with open(dst, "w", encoding='UTF-8') as output_file:
-                output_file.write(input_file.read())
-    except UnicodeDecodeError:
-        raise ParseException("Can't open source file to backup")
-    except (FileExistsError, IOError):
-        raise ParseException("Can't open target file to backup")
-
-
-def restore_config(src, dst):
-    """Restore the backup from src to dst. if dst exists, rename it."""
-    try:
-        if os.path.exists(dst):
-            new_name = dst + " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
-            os.rename(dst, new_name)
-        with open(dst, "w", encoding='UTF-8') as output_file:
-            with open(src, encoding='UTF-8') as input_file:
-                output_file.write(input_file.read())
-    except UnicodeDecodeError:
-        raise ParseException("Can't open source file to restore")
-    except (FileExistsError, IOError):
-        raise ParseException("Can't open target file to restore")

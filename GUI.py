@@ -59,7 +59,7 @@ class SteamSelector:
 
     def start(self):
         """Start the steam selector window."""
-        locations = bk.locate_steam()
+        locations = bk.SteamLocator.locate_steam()
         for user_id, loc in locations:
             self.listbox_selector.insert(tk.END, loc)
 
@@ -67,7 +67,7 @@ class SteamSelector:
         self.root.mainloop()
 
     class Listbox(tk.Listbox):
-        """Source:http://stackoverflow.com/a/15787278/2842452"""
+        """Source: http://stackoverflow.com/a/15787278/2842452"""
 
         def autowidth(self, maxwidth):
             f = font.Font(font=self.cget("font"))
@@ -132,7 +132,7 @@ class Exporter:
             if selection == self.steam_location:
                 tk.messagebox.showerror(st.error_backup, st.error_backup_text_same, parent=self.root)
             if selection and selection != self.steam_location:
-                bk.backup_config(self.steam_location, selection)
+                bk.BackupAndRestore.backup_config(self.steam_location, selection)
         except bk.ParseException:
             tk.messagebox.showerror(st.error_backup, st.error_backup_text_not_vdf, parent=self.root)
 
@@ -145,7 +145,7 @@ class Exporter:
             if selection == self.steam_location:
                 tk.messagebox.showerror(st.error_restore, st.error_restore_text_same, parent=self.root)
             if selection and selection != self.steam_location:
-                bk.restore_config(selection, self.steam_location)
+                bk.BackupAndRestore.restore_config(selection, self.steam_location)
         except bk.ParseException:
             tk.messagebox.showerror(st.error_restore, st.error_restore_text_not_vdf, parent=self.root)
 
