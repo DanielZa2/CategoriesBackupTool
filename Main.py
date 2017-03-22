@@ -58,7 +58,7 @@ class Categories:
             ret += tag.app_string()
             ret += "\n"
         if filter_symbols:
-            f = lambda s: s != "©" and s != "™"
+            f = lambda s: s != "©" and s != "™" and s != "®"
             return "".join(filter(f, ret))
         else:
             return ret
