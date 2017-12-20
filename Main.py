@@ -87,7 +87,7 @@ class Categories:
         with open(path, encoding='UTF-8') as file:
             file_string = file.read()
             parsed = vdf.loads(file_string)
-            return parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
+            return parsed["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["Apps"]
 
 
 class SteamApp:
@@ -309,7 +309,7 @@ class BackupAndRestore:
         """Backup the config file by copying only the categories to and external file. The new method. """
         with open(src, encoding='UTF-8') as valves_file:
             content = vdf.loads(valves_file.read(), mapper=collections.OrderedDict)
-            target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
+            target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["Apps"]
             filtered_target = {x: target_categories[x].get("tags", None) for x in target_categories.keys()}
             filtered_target = {x: y for x, y in filtered_target.items() if y is not None and y is not ""}
 
@@ -325,9 +325,9 @@ class BackupAndRestore:
 
             with open(dst, encoding='UTF-8') as valves_file:
                 content = vdf.loads(valves_file.read(), mapper=collections.OrderedDict)
-                target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"]
+                target_categories = content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["Apps"]
 
-                content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["apps"] = BackupAndRestore.__insert_categories__(target_categories, backedup_categories)
+                content["UserRoamingConfigStore"]["Software"]["Valve"]["Steam"]["Apps"] = BackupAndRestore.__insert_categories__(target_categories, backedup_categories)
 
             new_name = dst + " " + str(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S %f")) + ".bak"
             os.rename(dst, new_name)
